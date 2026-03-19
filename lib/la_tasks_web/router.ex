@@ -35,7 +35,11 @@ defmodule LaTasksWeb.Router do
   scope "/api", LaTasksWeb.API do
     pipe_through [:api, :api_auth]
 
-    get "/me", UserController, :me
+    get "/tasks", TaskController, :index
+    post "/tasks", TaskController, :create
+    patch "/tasks/reorder", TaskController, :reorder
+    patch "/tasks/:id/archive", TaskController, :archive
+    patch "/tasks/:id", TaskController, :update
   end
 
   # Other scopes may use custom stacks.

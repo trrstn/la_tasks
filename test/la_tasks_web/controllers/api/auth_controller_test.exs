@@ -98,47 +98,6 @@ defmodule LaTasksWeb.API.AuthControllerTest do
     end
   end
 
-  describe "GET /api/me" do
-    test "returns current user when token is valid", %{conn: conn} do
-      {:ok, user} =
-        Accounts.register_user(%{
-          username: "tristan-dev",
-          password: "Password1!",
-          password_confirmation: "Password1!"
-        })
-
-      token = Accounts.create_user_api_token(user)
-
-      conn =
-        conn
-        |> put_req_header("authorization", "Bearer #{token}")
-        |> get("/api/me")
-
-      body = json_response(conn, 200)
-
-      assert body["user"]["id"] == user.id
-      assert body["user"]["username"] == user.username
-    end
-
-    test "returns unauthorized when token is missing", %{conn: conn} do
-      conn = get(conn, "/api/me")
-      body = json_response(conn, 401)
-
-      assert body["error"] == "Unauthorized"
-    end
-
-    test "returns unauthorized when token is invalid", %{conn: conn} do
-      conn =
-        conn
-        |> put_req_header("authorization", "Bearer invalid-token")
-        |> get("/api/me")
-
-      body = json_response(conn, 401)
-
-      assert body["error"] == "Unauthorized"
-    end
-  end
-
   describe "DELETE /api/logout" do
     test "revokes token", %{conn: conn} do
       {:ok, user} =
@@ -163,7 +122,7 @@ defmodule LaTasksWeb.API.AuthControllerTest do
         build_conn()
         |> put_req_header("accept", "application/json")
         |> put_req_header("authorization", "Bearer #{token}")
-        |> get("/api/me")
+        |> get("/api/tasks")
 
       body = json_response(conn, 401)
       assert body["error"] == "Unauthorized"
