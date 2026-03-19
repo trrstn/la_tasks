@@ -4,6 +4,9 @@ defmodule LaTasks.Accounts.UserToken do
 
   alias LaTasks.Accounts.User
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+
   schema "users_tokens" do
     field :access_key, :binary
     field :expires_at, :utc_datetime
