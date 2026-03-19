@@ -16,5 +16,10 @@ config :swoosh, local: false
 # Do not print debug messages in production
 config :logger, level: :info
 
+# argon2
+config :argon2_elixir,
+  t_cost: 3,
+  m_cost: 16
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
