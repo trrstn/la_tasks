@@ -14,10 +14,28 @@ defmodule LaTasksWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :api_auth do
+    plug LaTasksWeb.Plugs.APIAuth
+  end
+
   scope "/", LaTasksWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  scope "/api", LaTasksWeb.API do
+    pipe_through :api
+
+    post "/register", AuthController, :register
+    post "/login", AuthController, :login
+    delete "/logout", AuthController, :logout
+  end
+
+  scope "/api", LaTasksWeb.API do
+    pipe_through [:api, :api_auth]
+
+    get "/me", UserController, :me
   end
 
   # Other scopes may use custom stacks.
