@@ -4,7 +4,7 @@ defmodule LaTasks.Repo.Migrations.CreateTasksTable do
   def change do
     create table(:tasks) do
       add :title, :string, null: false
-      add :rank, :string, null: false
+      add :rank, :decimal, null: false
       add :description, :text
       add :archived_at, :utc_datetime
 

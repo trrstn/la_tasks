@@ -10,7 +10,7 @@ defmodule LaTasks.Tasks.Task do
   schema "tasks" do
     field :title, :string
     field :description, :string
-    field :rank, :string
+    field :rank, :decimal
     field :archived_at, :utc_datetime
 
     belongs_to :user, User
@@ -23,7 +23,6 @@ defmodule LaTasks.Tasks.Task do
     |> cast(attrs, [:title, :description, :rank, :user_id])
     |> validate_required([:title, :rank, :user_id])
     |> validate_length(:title, min: 1, max: 255)
-    |> validate_length(:rank, min: 1, max: 64)
     |> foreign_key_constraint(:user_id)
   end
 
@@ -35,15 +34,12 @@ defmodule LaTasks.Tasks.Task do
   end
 
   def archive_changeset(task, attrs) do
-    task
-    |> cast(attrs, [:archived_at, :rank])
-    |> validate_length(:rank, min: 1, max: 64)
+    cast(task, attrs, [:archived_at, :rank])
   end
 
   def reorder_changeset(task, attrs) do
     task
     |> cast(attrs, [:rank])
     |> validate_required([:rank])
-    |> validate_length(:rank, min: 1, max: 64)
   end
 end

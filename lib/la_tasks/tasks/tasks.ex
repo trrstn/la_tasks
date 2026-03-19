@@ -124,7 +124,7 @@ defmodule LaTasks.Tasks do
       task_id == prev_id or task_id == next_id ->
         {:error, :invalid_neighbor}
 
-      prev_id != nil and next_id != nil and prev_rank >= next_rank ->
+      prev_id != nil and next_id != nil and Decimal.compare(prev_rank, next_rank) != :lt ->
         {:error, :invalid_neighbor_order}
 
       true ->

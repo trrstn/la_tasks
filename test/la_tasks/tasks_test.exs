@@ -1,15 +1,14 @@
 defmodule LaTasks.TasksTest do
   use LaTasks.DataCase, async: true
 
+  alias Decimal
   alias LaTasks.Tasks
   alias LaTasks.Tasks.Task
-
   alias LaTasks.AccountsFixtures
 
   describe "tasks" do
     setup do
       user = AccountsFixtures.user_fixture()
-
       %{user: user}
     end
 
@@ -24,8 +23,8 @@ defmodule LaTasks.TasksTest do
       assert task.user_id == user.id
       assert task.title == "First task"
       assert task.description == "Test description"
-      assert is_binary(task.rank)
-      assert task.archived_at == nil
+      assert match?(%Decimal{}, task.rank)
+      assert is_nil(task.archived_at)
     end
 
     test "create_task/1 inserts newly created tasks on top", %{user: user} do
@@ -59,12 +58,13 @@ defmodule LaTasks.TasksTest do
                  title: "Task 2"
                })
 
-      {:ok, _archived_task} =
+      {:ok, archived_task} =
         Tasks.create_task(%{
           user_id: user.id,
           title: "Archived task"
         })
-        |> then(fn {:ok, task} -> Tasks.archive_task(task) end)
+
+      assert {:ok, _archived_task} = Tasks.archive_task(archived_task)
 
       tasks = Tasks.list_active_tasks(user.id)
 
@@ -90,8 +90,7 @@ defmodule LaTasks.TasksTest do
       tasks = Tasks.list_archived_tasks(user.id)
 
       assert Enum.map(tasks, & &1.id) == [archived_task.id]
-      assert archived_task.archived_at != nil
-
+      assert not is_nil(archived_task.archived_at)
       refute Enum.any?(tasks, &(&1.id == active_task.id))
     end
 
@@ -121,6 +120,29 @@ defmodule LaTasks.TasksTest do
       end
     end
 
+    test "get_user_task/2 returns {:ok, task} for the user's task", %{user: user} do
+      assert {:ok, task} =
+               Tasks.create_task(%{
+                 user_id: user.id,
+                 title: "My task"
+               })
+
+      assert {:ok, fetched} = Tasks.get_user_task(user.id, task.id)
+      assert fetched.id == task.id
+    end
+
+    test "get_user_task/2 returns {:error, :not_found} for another user's task", %{user: user} do
+      other_user = AccountsFixtures.user_fixture()
+
+      assert {:ok, task} =
+               Tasks.create_task(%{
+                 user_id: other_user.id,
+                 title: "Other user's task"
+               })
+
+      assert {:error, :not_found} = Tasks.get_user_task(user.id, task.id)
+    end
+
     test "update_task/2 updates title and description", %{user: user} do
       assert {:ok, task} =
                Tasks.create_task(%{
@@ -137,7 +159,7 @@ defmodule LaTasks.TasksTest do
 
       assert updated_task.title == "New title"
       assert updated_task.description == "New description"
-      assert updated_task.rank == task.rank
+      assert Decimal.equal?(updated_task.rank, task.rank)
     end
 
     test "archive_task/1 sets archived_at", %{user: user} do
@@ -147,10 +169,44 @@ defmodule LaTasks.TasksTest do
                  title: "Task to archive"
                })
 
-      assert task.archived_at == nil
+      assert is_nil(task.archived_at)
 
       assert {:ok, archived_task} = Tasks.archive_task(task)
-      assert archived_task.archived_at != nil
+      assert not is_nil(archived_task.archived_at)
+    end
+
+    test "reorder_task/4 moves a task before the next neighbor", %{user: user} do
+      assert {:ok, task_a} =
+               Tasks.create_task(%{
+                 user_id: user.id,
+                 title: "Task A"
+               })
+
+      assert {:ok, task_b} =
+               Tasks.create_task(%{
+                 user_id: user.id,
+                 title: "Task B"
+               })
+
+      assert {:ok, task_c} =
+               Tasks.create_task(%{
+                 user_id: user.id,
+                 title: "Task C"
+               })
+
+      assert Enum.map(Tasks.list_active_tasks(user.id), & &1.id) == [
+               task_c.id,
+               task_b.id,
+               task_a.id
+             ]
+
+      assert {:ok, _task_a} = Tasks.reorder_task(user.id, task_a.id, nil, task_c.id)
+
+      assert Enum.map(Tasks.list_active_tasks(user.id), & &1.id) == [
+               task_a.id,
+               task_c.id,
+               task_b.id
+             ]
     end
 
     test "reorder_task/4 moves a task between neighbors", %{user: user} do
@@ -172,21 +228,18 @@ defmodule LaTasks.TasksTest do
                  title: "Task C"
                })
 
-      # Initial top-insert order:
-      # [task_c, task_b, task_a]
       assert Enum.map(Tasks.list_active_tasks(user.id), & &1.id) == [
                task_c.id,
                task_b.id,
                task_a.id
              ]
 
-      # Move task_a to the top: before task_c
-      assert {:ok, _task_a} = Tasks.reorder_task(user.id, task_a.id, nil, task_c.id)
+      assert {:ok, _task_c} = Tasks.reorder_task(user.id, task_c.id, task_b.id, task_a.id)
 
       assert Enum.map(Tasks.list_active_tasks(user.id), & &1.id) == [
-               task_a.id,
+               task_b.id,
                task_c.id,
-               task_b.id
+               task_a.id
              ]
     end
 
@@ -201,6 +254,10 @@ defmodule LaTasks.TasksTest do
 
       assert {:error, :invalid_neighbor} = Tasks.reorder_task(user.id, task.id, task.id, nil)
       assert {:error, :invalid_neighbor} = Tasks.reorder_task(user.id, task.id, nil, task.id)
+    end
+
+    test "reorder_task/4 returns not found error when task does not exist", %{user: user} do
+      assert {:error, :not_found} = Tasks.reorder_task(user.id, Ecto.UUID.generate(), nil, nil)
     end
 
     test "reorder_task/4 returns not found error when neighbor belongs to another user", %{
